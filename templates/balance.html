@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Change Form</title>
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+    <style>
+        .main-content {
+            text-align: center;
+            margin-top: 50px;
+        }
+        .navbar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <section class="navbar-section">
+            <a href="/" class="navbar-brand mr-2 btn btn-lg btn-primary">Home</a>
+        </section>
+        <section class="navbar-center">
+            <a>Current Account Balance: $<span id="account-balance">10,000.00</span></a>
+        </section>
+        <section class="navbar-section">
+            <a href="/balance" class="btn btn-link btn-lg">Balance</a>
+            <a href="/sale" class="btn btn-link btn-lg">Sale</a>
+            <a href="/purchase" class="btn btn-link btn-lg">Purchase</a>
+            <a href="/history" class="btn btn-link btn-lg">History</a>
+        </section>
+    </header>
+    <div class="main-content">
+        <h1 class="text-center">Balance Change Form</h1>
+        <form class="form-horizontal" onsubmit="return validateForm()">
+            <div class="form-group">
+                <label class="form-label" for="operation-type">Type of Operation</label>
+                <select class="form-select" id="operation-type" required>
+                    <option value="add">Add</option>
+                    <option value="subtract">Subtract</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="value">Value</label>
+                <input class="form-input" type="number" id="value" required>
+            </div>
+            <button class="btn btn-primary" type="submit">Submit</button>
+        </form>
+    </div>
+    <script>
+        function validateForm() {
+            const value = document.getElementById('value').value;
+
+            if (value <= 0) {
+                alert('Value must be a positive number.');
+                return false;
+            }
+
+            return true;
+        }
+    </script>
+</body>
+</html>

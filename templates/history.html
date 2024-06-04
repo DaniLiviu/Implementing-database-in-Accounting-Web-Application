@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History</title>
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-exp.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
+    <style>
+        .main-content {
+            text-align: center;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <section class="navbar-section">
+            <a href="/" class="navbar-brand mr-2 btn btn-lg btn-primary">Home</a>
+        </section>
+        <section class="navbar-section">
+            <a href="/balance" class="btn btn-link btn-lg">Balance</a>
+            <a href="/sale" class="btn btn-link btn-lg">Sale</a>
+            <a href="/purchase" class="btn btn-link btn-lg">Purchase</a>
+            <a href="/history" class="btn btn-link btn-lg">History</a>
+        </section>
+    </header>
+    <div class="main-content">
+        <h1 class="text-center">Transaction History</h1>
+        <form>
+            <div class="form-group">
+                <label class="form-label" for="from">From</label>
+                <input class="form-input" type="date" id="from">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="to">To</label>
+                <input class="form-input" type="date" id="to">
+            </div>
+            <button class="btn btn-primary" type="submit">Filter</button>
+        </form>
+        <div id="history">
+            <!-- Dynamic content will be loaded here -->
+        </div>
+    </div>
+    <script>
+        document.querySelector('form').onsubmit = function(event) {
+            event.preventDefault();
+            const from = document.getElementById('from').value;
+            const to = document.getElementById('to').value;
+            const url = `/history/${from || ''}/${to || ''}/`;
+            // Fetch history data and update #history div (pseudo-code)
+            // fetch(url).then(response => response.json()).then(data => updateHistory(data));
+        };
+
+        function updateHistory(data) {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = '';
+            data.forEach(entry => {
+                const div = document.createElement('div');
+                div.textContent = `${entry.date} - ${entry.description}`;
+                historyDiv.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
