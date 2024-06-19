@@ -1,118 +1,183 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-import json
+from flask_sqlalchemy import SQLAlchemy
 import os
-from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Needed for flashing messages
 
-DATA_FILE = 'data.json'
+# Configure the SQLite database
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///warehouse.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {"balance": 0, "stock_level": 0, "history": [], "items": []}
-    with open(DATA_FILE, 'r') as file:
-        return json.load(file)
+# Initialize the database
+db = SQLAlchemy(app)
 
-def save_data(data):
-    with open(DATA_FILE, 'w') as file:
-        json.dump(data, file, indent=4)
+# Define the database schema
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    unit_price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
 
-def add_to_history(data, description):
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    data['history'].append({"date": timestamp, "description": description})
-    save_data(data)
+class Account(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    balance = db.Column(db.Float, nullable=False)
 
+class TransactionHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_name = db.Column(db.String(50))
+    unit_price = db.Column(db.Float)
+    quantity = db.Column(db.Integer)
+    total_price = db.Column(db.Float)
+    operation = db.Column(db.String(10))
+    date = db.Column(db.DateTime, default=db.func.current_timestamp())
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "product_name": self.product_name,
+            "unit_price": self.unit_price,
+            "quantity": self.quantity,
+            "total_price": self.total_price,
+            "operation": self.operation,
+            "date": self.date.isoformat(),
+        }
+
+# Initialize the database and tables
+def init_db():
+    with app.app_context():
+        db.create_all()
+        if Account.query.first() is None:
+            initial_balance = Account(balance=10000.00)
+            db.session.add(initial_balance)
+            db.session.commit()
+
+# Define routes for each HTML file
 @app.route('/')
 def index():
-    data = load_data()
-    return render_template('index.html', balance=data['balance'], stock_level=data['stock_level'], items=data['items'])
+    products = Product.query.all()
+    account = Account.query.first()
+    return render_template('index.html', products=products, account_balance=account.balance)
 
 @app.route('/balance', methods=['GET', 'POST'])
 def balance():
-    data = load_data()
+    account = Account.query.first()
     if request.method == 'POST':
         try:
-            operation = request.form['operation-type']
+            operation_type = request.form['operation-type']
             value = float(request.form['value'])
-            if operation == 'add':
-                data['balance'] += value
-                add_to_history(data, f"Added {value} to balance. New balance: {data['balance']}")
-                save_data(data)
-                return jsonify({"success": True, "message": "Your funds have been allocated successfully"})
-            elif operation == 'subtract':
-                if value > data['balance']:
-                    return jsonify({"success": False, "message": "Insufficient balance"}), 400
-                data['balance'] -= value
-                add_to_history(data, f"Subtracted {value} from balance. New balance: {data['balance']}")
-                save_data(data)
-                return jsonify({"success": True, "message": "Your funds have been allocated successfully"})
-        except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 400
-    return render_template('balance.html', balance=data['balance'])
 
-@app.route('/purchase', methods=['POST', 'GET'])
-def handle_purchase():
-    data = load_data()
+            if operation_type == 'add':
+                account.balance += value
+            elif operation_type == 'subtract':
+                if account.balance >= value:
+                    account.balance -= value
+                else:
+                    return jsonify({'success': False, 'message': 'Insufficient funds'}), 400
+
+            transaction = TransactionHistory(
+                product_name="Balance Change",
+                unit_price=0,
+                quantity=0,
+                total_price=value,
+                operation=operation_type
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Balance updated successfully'})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': f"An error occurred: {e}"}), 500
+    return render_template('balance.html', account_balance=account.balance)
+
+@app.route('/history')
+def history():
+    transactions = TransactionHistory.query.all()
+    account = Account.query.first()
+    transactions_json = jsonify([transaction.to_dict() for transaction in transactions])
+    print(transactions_json)
+    # transactions_json = [
+    #     {
+    #         'product_name': t.product_name,
+    #         'unit_price': t.unit_price,
+    #         'quantity': t.quantity,
+    #         'total_price': t.total_price,
+    #         'operation': t.operation,
+    #         'date': t.date.strftime('%Y-%m-%d %H:%M:%S')
+    #     } for t in transactions
+    # ]
+    return render_template('history.html', transactions_json=transactions_json, transactions=transactions, account_balance=account.balance)
+
+@app.route('/purchase', methods=['GET', 'POST'])
+def purchase():
+    account = Account.query.first()
     if request.method == 'POST':
         try:
             product_name = request.form['product-name']
             unit_price = float(request.form['unit-price'])
-            number_of_pieces = int(request.form['number-of-pieces'])
-            total_cost = unit_price * number_of_pieces
+            quantity = int(request.form['quantity'])
+            total_price = unit_price * quantity
 
-            if total_cost > data['balance']:
-                return jsonify({"success": False, "message": "Insufficient balance for purchase"}), 400
+            if total_price > account.balance:
+                return jsonify({'success': False, 'message': 'Insufficient funds'}), 400
 
-            data['balance'] -= total_cost
-            data['stock_level'] += number_of_pieces
-            data['items'].append({"name": product_name, "unit_price": unit_price, "quantity": number_of_pieces})
-            add_to_history(data, f"Purchased {number_of_pieces} of {product_name} for ${total_cost}")
-            save_data(data)
-            return jsonify({"success": True, "message": "Your purchase has been completed successfully"})
+            product = Product.query.filter_by(name=product_name).first()
+            if product:
+                product.quantity += quantity
+            else:
+                new_product = Product(name=product_name, unit_price=unit_price, quantity=quantity)
+                db.session.add(new_product)
+            
+            account.balance -= total_price
+
+            transaction = TransactionHistory(
+                product_name=product_name,
+                unit_price=unit_price,
+                quantity=quantity,
+                total_price=total_price,
+                operation='purchase'
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Purchase successful'})
         except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 400
-    return render_template('purchase.html', balance=data['balance'])
+            db.session.rollback()
+            return jsonify({'success': False, 'message': f"An error occurred: {e}"}), 500
+    return render_template('purchase.html', account_balance=account.balance)
 
-@app.route('/sale', methods=['POST', 'GET'])
-def handle_sale():
-    data = load_data()
+@app.route('/sale', methods=['GET', 'POST'])
+def sale():
+    account = Account.query.first()
     if request.method == 'POST':
         try:
             product_name = request.form['product-name']
             unit_price = float(request.form['unit-price'])
-            number_of_pieces = int(request.form['number-of-pieces'])
-            total_revenue = unit_price * number_of_pieces
+            quantity = int(request.form['quantity'])
 
-            item_in_stock = next((item for item in data['items'] if item['name'] == product_name), None)
-            if not item_in_stock or item_in_stock['quantity'] < number_of_pieces:
-                return jsonify({"success": False, "message": "Insufficient stock for sale"}), 400
+            product = Product.query.filter_by(name=product_name).first()
+            if not product or product.quantity < quantity:
+                return jsonify({'success': False, 'message': 'Insufficient stock'}), 400
 
-            data['balance'] += total_revenue
-            data['stock_level'] -= number_of_pieces
-            add_to_history(data, f"Sold {number_of_pieces} of {product_name} for ${total_revenue}")
+            total_price = unit_price * quantity
+            product.quantity -= quantity
+            if product.quantity == 0:
+                db.session.delete(product)
+            account.balance += total_price
 
-            # Update existing item or remove if quantity is zero
-            item_in_stock['quantity'] -= number_of_pieces
-            if item_in_stock['quantity'] <= 0:
-                data['items'].remove(item_in_stock)
-
-            save_data(data)
-            return jsonify({"success": True, "message": "Sale completed successfully"})
+            transaction = TransactionHistory(
+                product_name=product_name,
+                unit_price=unit_price,
+                quantity=quantity,
+                total_price=total_price,
+                operation='sale'
+            )
+            db.session.add(transaction)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Sale successful'})
         except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 400
-    return render_template('sale.html', balance=data['balance'], items=data['items'])
+            db.session.rollback()
+            return jsonify({'success': False, 'message': f"An error occurred: {e}"}), 500
+    products = Product.query.all()
+    return render_template('sale.html',products = products, account_balance=account.balance)
 
-@app.route('/history/<line_from>/<line_to>/', methods=['GET'])
-@app.route('/history/', defaults={'line_from': None, 'line_to': None}, methods=['GET'])
-def history(line_from, line_to):
-    data = load_data()
-    history = data['history']
-    
-    if line_from and line_to:
-        history = [entry for entry in history if line_from <= entry['date'] <= line_to]
-    
-    return render_template('history.html', balance=data['balance'], history=history)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
+    init_db()
     app.run(debug=True, port=5500)

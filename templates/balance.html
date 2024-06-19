@@ -9,39 +9,106 @@
     <link rel="stylesheet" href="https://unpkg.com/spectre.css/dist/spectre-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        .main-content {
-            text-align: center;
-            margin: 0 auto;
-            margin-top: 50px;
-            max-width: 600px;
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .navbar {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #000;
+        }
+        .navbar-left, .navbar-right {
+            display: flex;
+            align-items: center;
+        }
+        .navbar-right {
+            flex: 1;
+            justify-content: flex-end;
         }
         .navbar-center {
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
         }
-        .items-table {
-            margin-top: 20px;
-            text-align: left;
+        .main-content {
+            text-align: center;
+            margin-top: 70px;
+            width: 20%;
+            max-width: 900px;
         }
-        .items-table table {
+        button {
+            background-color: #ffffff;
+            border-radius: 24px;
+            border-style: none;
+            box-shadow: rgba(50, 240, 240, 0.2) 0 3px 5px -1px, rgba(0, 0, 0, .14) 0 6px 10px 0, rgba(0, 0, 0, .12) 0 1px 18px 0;
+            box-sizing: border-box;
+            color: #06080a;
+            font-size: 20px;
+            font-weight: 900;
+            font-family: inherit;
+            letter-spacing: .25px;
+            line-height: normal;
+            padding: 11px 24px;
+            transition: background box-shadow 280ms ease;
+            margin: 0 5px; /* Adding space between buttons */
+        }
+        button:hover {
+            background: #a8b3c7;
+            color: #174ea6;
+        }
+        button:active {
+            box-shadow: 0 4px 4px 0 rgb(60 64 67 / 30%), 0 8px 12px 6px rgb(60 64 67 / 15%);
+            outline: none;
+            border: 2px solid #4285f4;
+        }
+        .footer {
             width: 100%;
+            background-color: #000;
+            color: white;
+            text-align: center;
+            padding: 5px 0;
+            position: fixed;
+            bottom: 0;
+        }
+        .btn {
+            background: linear-gradient(30deg, #000 35%, #ea8b19 73%);
+            position: relative;
+            padding: 25px 60px;
+            font-size: 30px;
+            font-weight: 500;
+            color: white;
+            border: 3px solid #ea8b19;
+            border-radius: 8px;
+            transition: all .3s ease-in-out;
+            line-height: 0px;
+        }
+        .btn:hover {
+            background: #000;
+            color: #ea8b19;
+            box-shadow: 0 0 50px #ea8b19;
         }
     </style>
 </head>
 <body>
     <header class="navbar">
-        <section class="navbar-section">
-            <a href="/" class="navbar-brand mr-2 btn btn-lg btn-primary">Home</a>
-        </section>
+        <div class="navbar-left">
+            <a href="/"><button>Home</button></a>
+        </div>
+        <div class="navbar-right">
+            <a href="/balance"><button>Balance</button></a>
+            <a href="/sale"><button>Sale</button></a>
+            <a href="/purchase"><button>Purchase</button></a>
+            <a href="/history"><button>History</button></a>
+        </div>
         <section class="navbar-center">
-            <a>Current Account Balance: $<span id="account-balance">{{ balance }}</span></a>
-        </section>
-        <section class="navbar-section">
-            <a href="/balance" class="btn btn-link btn-lg">Balance</a>
-            <a href="/sale" class="btn btn-link btn-lg">Sale</a>
-            <a href="/purchase" class="btn btn-link btn-lg">Purchase</a>
-            <a href="/history" class="btn btn-link btn-lg">History</a>
+            <h6 style="color: white;">Current Account Balance: $<span id="account-balance">{{ account_balance }}</span></h6>
         </section>
     </header>
     <div class="main-content">
@@ -58,9 +125,12 @@
                 <label class="form-label" for="value">Value</label>
                 <input class="form-input" type="number" id="value" name="value" required>
             </div>
-            <button class="btn btn-primary" type="submit">Submit</button>
+            <button class="btn" type="submit">SUBMIT</button>
         </form>
     </div>
+    <footer class="footer">
+        <p>&copy;Thank you for using the Warehouse Management</p>
+    </footer>
     <script>
         function handleFormSubmit(event) {
             event.preventDefault();
@@ -71,7 +141,12 @@
                 method: 'POST',
                 body: formData,
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     Swal.fire({
@@ -81,7 +156,7 @@
                         showConfirmButton: false,
                         timer: 1500
                     }).then(() => {
-                        window.location.reload();
+                        document.getElementById('account-balance').innerText = data.balance.toFixed(2);
                     });
                 } else {
                     Swal.fire({
@@ -95,7 +170,7 @@
                 Swal.fire({
                     icon: "error",
                     title: "Oops...",
-                    text: "Something went wrong!",
+                    text: `An error occurred: ${error.message}`,
                 });
             });
         }
