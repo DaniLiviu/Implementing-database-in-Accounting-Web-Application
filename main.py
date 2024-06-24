@@ -92,18 +92,8 @@ def balance():
 def history():
     transactions = TransactionHistory.query.all()
     account = Account.query.first()
-    transactions_json = jsonify([transaction.to_dict() for transaction in transactions])
+    transactions_json = [transaction.to_dict() for transaction in transactions]
     print(transactions_json)
-    # transactions_json = [
-    #     {
-    #         'product_name': t.product_name,
-    #         'unit_price': t.unit_price,
-    #         'quantity': t.quantity,
-    #         'total_price': t.total_price,
-    #         'operation': t.operation,
-    #         'date': t.date.strftime('%Y-%m-%d %H:%M:%S')
-    #     } for t in transactions
-    # ]
     return render_template('history.html', transactions_json=transactions_json, transactions=transactions, account_balance=account.balance)
 
 @app.route('/purchase', methods=['GET', 'POST'])

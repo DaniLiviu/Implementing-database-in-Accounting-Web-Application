@@ -116,8 +116,8 @@
             margin: 20px auto;
         }
         .option {
-            margin-right: 5px;
-            width: 80.5px;
+            margin-right: 20px;
+            width: 810.5px;
             height: 28px;
             position: relative;
             top: 2px;
@@ -242,7 +242,7 @@
             const ctx = document.getElementById('history-chart').getContext('2d');
             const transactions = {{ transactions_json | tojson }};
             const labels = transactions.map(transaction => transaction.date);
-            const data = transactions.map(transaction => transaction.total_price);
+            const data = transactions.map(transaction => transaction.total_price)
 
             new Chart(ctx, {
                 type: 'line',
